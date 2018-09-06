@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\amqp-sharp-bridge\amqp-sharp-bridge.csproj">
+      <Project>{99F42C72-B699-4979-AD9D-B0419E0F5A25}</Project>
+      <Name>amqp-sharp-bridge</Name>
+    </ProjectReference>
+  </ItemGroup>
+</Project>
