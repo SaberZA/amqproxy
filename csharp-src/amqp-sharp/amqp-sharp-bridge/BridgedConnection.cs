@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Net.Sockets;
+using amqp_sharp_common;
 
 namespace amqp_sharp_bridge
 {
@@ -48,52 +49,30 @@ namespace amqp_sharp_bridge
 //                while ((iReceived = SocketCouple.ClientBridgeSocket.Receive(bHeader, headerSize, SocketFlags.None)) > 0)
                 while ((iReceived = SocketCouple.ClientBridgeSocket.Receive(bBuffer, SocketFlags.None)) > 0)
                 {
-//                    Header.TDSHeader header = new Header.TDSHeader(bHeader);
-//                    var incomingBuffer = bHeader;
-
-//                    int iMinBufferSize = Math.Max(0x1000, header.LengthIncludingHeader + 1);
-//                    if ((bBuffer == null) || (bBuffer.Length < iMinBufferSize))
-//                    {
-//                        bBuffer = new byte[iMinBufferSize];
-//                    }
-
-                    //Console.WriteLine(header.Type);
-
-//                    if (header.Type == (HeaderType)23)
-//                    {
-//                        iReceived = SocketCouple.ClientBridgeSocket.Receive(bBuffer, 0, 0x1000 - headerSize, SocketFlags.None);
-//                    }
-//                    else if(header.PayloadSize > 0)
-//                    {
-//                        //Console.WriteLine("\t{0:N0} bytes package", header.LengthIncludingHeader);
-//                        SocketCouple.ClientBridgeSocket.Receive(bBuffer, 0, header.PayloadSize, SocketFlags.None);
-//                    }
-//                    TDSPacket tdsPacket = new TDSPacket(bHeader, bBuffer, header.PayloadSize);
-//                    OnTDSPacketReceived(tdsPacket);
-
-//                    if (tdsMessage == null)
-//                        tdsMessage = Message.TDSMessage.CreateFromFirstPacket(tdsPacket);
-//                    else
-//                        tdsMessage.Packets.Add(tdsPacket);
-//
-//                    if ((header.StatusBitMask & StatusBitMask.END_OF_MESSAGE) == StatusBitMask.END_OF_MESSAGE)
-//                    {
-//                        OnTDSMessageReceived(tdsMessage);
-//                        tdsMessage = null;
-//                    }
-
-//                    SocketCouple.BridgeSQLSocket.Send(bHeader, bHeader.Length, SocketFlags.None);
-
-//                    if (header.Type == (HeaderType)23)
-//                    {
-//                        SocketCouple.BridgeSQLSocket.Send(bBuffer, iReceived, SocketFlags.None);
-//                    }
-//                    else
-//                    {
-//                        SocketCouple.BridgeSQLSocket.Send(bBuffer, header.PayloadSize, SocketFlags.None);
-//                    }
-
-//                    SocketCouple.BridgeSQLSocket.Send(bBuffer, header.LengthIncludingHeader, SocketFlags.None);
+                    Console.WriteLine($"[FROM CLIENT][{iReceived} bytes received]");
+                    var amqpHeader = new byte[8];
+                    Array.Copy(bBuffer, 0, amqpHeader, 0, 8);
+                    var isProtocolHeader = isProtocolHeaderPacket(amqpHeader);
+                    if (isProtocolHeader)
+                    {
+                        byte asciiDifference = 48; 
+                        amqpHeader[4] = amqpHeader[4].Add(asciiDifference);
+                        amqpHeader[5] = amqpHeader[5].Add(asciiDifference);
+                        amqpHeader[6] = amqpHeader[6].Add(asciiDifference);
+                        amqpHeader[7] = amqpHeader[7].Add(asciiDifference);
+                        Console.WriteLine($"    [FROM CLIENT][PROTOCOL HEADER -> {string.Join("-",amqpHeader.Select(p=>Encoding.UTF8.GetString(new [] {p})))}]");
+                    }
+                    else
+                    {
+                        var frameType = (FrameType) amqpHeader[0];
+                        var frameChannel = BitConverter.ToUInt16(new [] {amqpHeader[1], amqpHeader[2]},0);
+                        var frameSize = BitConverter.ToUInt32(amqpHeader, 3);
+                    
+                        Console.WriteLine($"    [FROM CLIENT][GENERAL -> {frameType}]");
+                        Console.WriteLine($"    [FROM CLIENT][GENERAL -> {frameChannel}]");
+                        Console.WriteLine($"    [FROM CLIENT][GENERAL -> {frameSize}]");
+                    }
+                    
                     SocketCouple.BridgeSQLSocket.Send(bBuffer, iReceived, SocketFlags.None);
                 }
             }
@@ -103,9 +82,13 @@ namespace amqp_sharp_bridge
             }
 
             OnConnectionDisconnected(ConnectionType.ClientBridge);
-            //Console.WriteLine("Closing InputThread");
         }
 
+        private bool isProtocolHeaderPacket(byte[] amqpHeader)
+        {
+            return amqpHeader.SequenceEqual(AMQP.PROTOCOL_START);
+        }
+        
         protected virtual void BridgeSQLThread()
         {
             try
@@ -115,25 +98,18 @@ namespace amqp_sharp_bridge
 
                 while ((iReceived = SocketCouple.BridgeSQLSocket.Receive(bBuffer, SocketFlags.None)) > 0)
                 {
-//                    Header.TDSHeader header = new Header.TDSHeader(bBuffer);
-//                    var tcpHeader = new TcpHeader(bBuffer, iReceived);
+                    Console.WriteLine($"[FROM SERVER][{iReceived} bytes received]");
+                    var amqpHeader = new byte[8];
+                    Array.Copy(bBuffer, 0, amqpHeader, 0, 8);
+//                    var isProtocolHeader = isProtocolHeaderPacket(amqpHeader);
+                    var frameType = (FrameType) amqpHeader[0];
+                    var frameChannel = BitConverter.ToUInt16(new [] {amqpHeader[1], amqpHeader[2]},0);
+                    var frameSize = BitConverter.ToUInt32(amqpHeader, 3);
                     
-//                    Console.WriteLine("[OUT][" + header.Type.ToString() + "]{" + iReceived + "}");
-//                    Console.WriteLine("[RAW TCP HEADER]");
-//                    Console.WriteLine($"{tcpHeader.SourcePort}");
-//                    Console.WriteLine($"{tcpHeader.DestinationPort}");
-//                    Console.WriteLine($"{tcpHeader.SequenceNumber}");
-//                    Console.WriteLine($"{tcpHeader.AcknowledgementNumber}");
-//                    Console.WriteLine($"{tcpHeader.HeaderLength}");
-//                    Console.WriteLine($"{tcpHeader.WindowSize}");
-//                    Console.WriteLine($"{tcpHeader.UrgentPointer}");
-//                    Console.WriteLine($"{tcpHeader.Flags}");
-//                    Console.WriteLine($"{tcpHeader.Checksum}");
-//                    Console.WriteLine($"{tcpHeader.Data}");
-//                    Console.WriteLine($"{tcpHeader.GetBatchText(iReceived)}");
-//                    Console.WriteLine($"{tcpHeader.MessageLength}");
-//                    Console.WriteLine("[END OF RAW TCP HEADER]");
-            
+                    Console.WriteLine($"    [FROM SERVER][GENERAL -> {frameType}]");
+                    Console.WriteLine($"    [FROM SERVER][GENERAL -> {frameChannel}]");
+                    Console.WriteLine($"    [FROM SERVER][GENERAL -> {frameSize}]");
+                    
                     SocketCouple.ClientBridgeSocket.Send(bBuffer, iReceived, SocketFlags.None);
                 }
             }
@@ -143,7 +119,6 @@ namespace amqp_sharp_bridge
             }
 
             OnConnectionDisconnected(ConnectionType.BridgeSQL);
-            //Console.WriteLine("Closing OutputThread");
         }
 
 

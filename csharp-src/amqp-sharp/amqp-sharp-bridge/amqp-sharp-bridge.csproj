@@ -2,4 +2,10 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\amqp-sharp-common\amqp-sharp-common.csproj">
+      <Project>{5A3CD724-AFEE-4ED6-98E9-8E3A44FC773E}</Project>
+      <Name>amqp-sharp-common</Name>
+    </ProjectReference>
+  </ItemGroup>
 </Project>
